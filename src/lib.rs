@@ -99,22 +99,29 @@ pub fn actual_runtime(filename:&str) -> i32 {
 
     /* Rows of bytes for middle column */
     let mut middle_column_string = "".to_owned();
+
+    /* Rows of chars for last column */
+    let mut last_column_string = "".to_owned();
+
     for address in addresses {
         let cur_row_bytes = state.bytes_from(address);
         let mut bytes_row_string = "  ".to_owned();
+        let mut chars_row_string = "  ".to_owned();
         for byte in cur_row_bytes {
             bytes_row_string += &ec::padded_byte(*byte);
             bytes_row_string += " ";
+            chars_row_string += &String::from(ec::chared_byte(*byte));
         }
         middle_column_string += &bytes_row_string;
         middle_column_string += "\n";
+        last_column_string   += &chars_row_string;
+        last_column_string   += "\n";
     }
 
-    /* Rows of chars for rightmost column */
-    e
+
 
     let bytes_display = TextView::new(format!("{}", middle_column_string)).align(cursive::align::Align::top_left());
-    let chars_display = TextView::new("|   chars\n").align(cursive::align::Align::top_left());
+    let chars_display = TextView::new(format!("{}", last_column_string)).align(cursive::align::Align::top_left());
 
     let main_layout = LinearLayout::horizontal().child(line_numbers).child(bytes_display).child(chars_display);
 
