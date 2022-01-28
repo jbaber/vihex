@@ -11,21 +11,23 @@ use crossterm::{
     event::{self, Event as CEvent, KeyCode},
     terminal::{disable_raw_mode, enable_raw_mode},
 };
-use std::fs;
+// use std::fs;
 use std::io;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
-use tui::{
-    backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Span, Spans},
-    widgets::{
-        Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs,
-    },
-    Terminal,
-};
+use tui::backend::CrosstermBackend;
+use tui::layout::Alignment;
+use tui::layout::Constraint;
+use tui::layout::Direction;
+use tui::layout:: Layout;
+use tui::style::Color;
+use tui::style::Style;
+use tui::widgets::Block;
+use tui::widgets::BorderType;
+use tui::widgets::Borders;
+use tui::widgets::Paragraph;
+use tui::Terminal;
 
 enum Event<I> {
     Input(I),
@@ -178,50 +180,27 @@ pub fn actual_runtime(filename:&str, color: bool) -> i32 {
             let size = rect.size();
             let chunks = Layout::default()
                 .direction(Direction::Horizontal)
-                .margin(2)
+                .margin(1)
                 .constraints(
                     [
-                        Constraint::Length(6),
-                        Constraint::Min(2),
-                        Constraint::Length(16),
+                        Constraint::Percentage(100),
                     ]
                     .as_ref(),
                 )
                 .split(size);
 
-            let chars = Paragraph::new("pet-CLI 2020 - all rights reserved")
-                .style(Style::default().fg(Color::LightCyan))
-                .alignment(Alignment::Center)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::White))
-                        .border_type(BorderType::Plain),
-                );
-
-            let addresses = Paragraph::new("Addresses")
+            let everything = Paragraph::new(format!("{:?}", state.bytes_from(0)))
                 .style(Style::default().fg(Color::LightCyan))
                 .alignment(Alignment::Left)
                 .block(
                     Block::default()
                         .borders(Borders::ALL)
+                .title(filename)
                         .style(Style::default().fg(Color::White))
                         .border_type(BorderType::Plain),
                 );
 
-            let bytes = Paragraph::new("Bytes")
-                .style(Style::default().fg(Color::LightCyan))
-                .alignment(Alignment::Left)
-                .block(
-                    Block::default()
-                        .borders(Borders::ALL)
-                        .style(Style::default().fg(Color::White))
-                        .border_type(BorderType::Plain),
-                );
-
-            rect.render_widget(addresses, chunks[0]);
-            rect.render_widget(bytes, chunks[1]);
-            rect.render_widget(chars, chunks[2]);
+            rect.render_widget(everything, chunks[0]);
         });
 
         let received = rx.recv();
