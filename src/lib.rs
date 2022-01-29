@@ -13,6 +13,7 @@ use crossterm::{
 };
 // use std::fs;
 use std::io;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -23,11 +24,11 @@ use tui::layout::Direction;
 use tui::layout:: Layout;
 use tui::style::Color;
 use tui::style::Style;
-use tui::widgets::Block;
-use tui::widgets::BorderType;
-use tui::widgets::Borders;
-use tui::widgets::Paragraph;
 use tui::Terminal;
+use tui::widgets::Block;
+use tui::widgets::Borders;
+use tui::widgets::BorderType;
+use tui::widgets::Paragraph;
 
 enum Event<I> {
     Input(I),
@@ -42,7 +43,8 @@ pub fn cargo_version() -> Result<String, String> {
     return Err("Version unknown (not compiled with cargo)".to_string());
 }
 
-pub fn actual_runtime(filename:&str, color: bool) -> i32 {
+pub fn actual_runtime(filename:&str, color: bool, readonly:bool,
+        prefs_path: PathBuf, state_path: PathBuf) -> i32 {
     let file = match ec::filehandle(filename) {
         Ok(Some(filehandle)) => {
             Some(filehandle)
@@ -83,22 +85,50 @@ pub fn actual_runtime(filename:&str, color: bool) -> i32 {
         }
     }
 
-    let state = ec::State{
-        radix: 16,
-        filename: filename.to_owned(),
-        before_context: 0,
-        after_context: 0,
-        show_byte_numbers: true,
-        show_prompt: false,
-        color: true,
-        show_chars: true,
-        unsaved_changes: false,
-        index: 0,
-        width: NonZeroUsize::new(16).unwrap(),
-        all_bytes: all_bytes,
-        // TODO calculate based on longest possible index
-        n_padding: "      ".to_owned(),
-        last_search: None,
+    let default_prefs = ec::Preferences {
+        color: color,
+        ..ec::Preferences::default()
+    };
+
+
+    /* Use a state file if one is present */
+    let maybe_state = ec::State::read_from_path(&state_path);
+    let mut state = if maybe_state.is_ok() {
+        maybe_state.unwrap()
+    }
+    else {
+        ec::State {
+            prefs: default_prefs,
+            unsaved_changes: (filename == ""),
+            filename: filename.to_owned(),
+            readonly: readonly,
+            index: 0,
+            all_bytes: if filename == "" {
+                Vec::new()
+            }
+            else {
+                let maybe_all_bytes = ec::all_bytes_from_filename(filename);
+                if maybe_all_bytes.is_ok() {
+                    maybe_all_bytes.unwrap()
+                }
+                else {
+                    match maybe_all_bytes {
+                        Err(ec::AllBytesFromFilenameError::NotARegularFile) => {
+                            println!("{} is not a regular file", filename);
+                            return 1;
+                        },
+                        Err(ec::AllBytesFromFilenameError::FileDoesNotExist) => {
+                            Vec::new()
+                        },
+                        _ => {
+                            println!("Cannot read {}", filename);
+                            return 1;
+                        }
+                    }
+                }
+            },
+            last_search: None,
+        }
     };
 
     let _explanation = "hjkl or ←↓↑→ to navigate | q to quit";
@@ -106,7 +136,7 @@ pub fn actual_runtime(filename:&str, color: bool) -> i32 {
     /* Addresses for left column starting at 0 */
     let addresses = state.addresses(0);
     let addresses_s = addresses.iter().map(|x|
-            ec::address_display(*x, state.radix, "", false))
+            ec::address_display(*x, state.prefs.radix, "", false))
             .collect::<Vec<String>>().join("\n");
 
     /* Rows of bytes for middle column */
